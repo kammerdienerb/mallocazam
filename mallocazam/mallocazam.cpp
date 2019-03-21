@@ -48,8 +48,9 @@ struct mallocazam : public ModulePass {
 
     Function * defineCastCatcherFunction(Module * module_ptr) {
         Type * pointer_type = Type::getInt8PtrTy(module_ptr->getContext());
+        Type * int_type     = Type::getInt32Ty(module_ptr->getContext());
 
-        std::vector<Type*> param_types { pointer_type, pointer_type };
+        std::vector<Type*> param_types { pointer_type, pointer_type, int_type };
 
         FunctionType * fn_type = FunctionType::get(Type::getVoidTy(module_ptr->getContext()), param_types, false);
 
@@ -117,9 +118,11 @@ struct mallocazam : public ModulePass {
                     }
                 }
                 for (BitCastInst * cast : casts) {
-                    Value * arg0    = nullptr;
-                    Value * arg1    = nullptr;
-                    Type * ptr_type = Type::getInt8PtrTy(theModule.getContext());
+                    Value * arg0       = nullptr;
+                    Value * arg1       = nullptr;
+                    Value * arg2       = nullptr;
+                    Type * ptr_type    = Type::getInt8PtrTy(theModule.getContext());
+                    Type * object_type = nullptr;
 
                     builder->SetInsertPoint(cast);
 
@@ -128,13 +131,17 @@ struct mallocazam : public ModulePass {
                         arg0 = builder->CreateBitCast(arg0, ptr_type);
                     }
 
-                    arg1 = getOrCreateGlobalTypeString(cast->getType()->getPointerElementType(), theModule);
+                    object_type = cast->getType()->getPointerElementType();
+
+                    arg1 = getOrCreateGlobalTypeString(object_type, theModule);
                     arg1 = builder->CreateInBoundsGEP(
                                 arg1,
                                 { builder->getInt32(0)
                                 , builder->getInt32(0) });
 
-                    builder->CreateCall(fn, { arg0, arg1 });
+                    arg2 = builder->getInt32(theModule.getDataLayout().getTypeAllocSize(object_type));
+
+                    builder->CreateCall(fn, { arg0, arg1, arg2 });
                 }
             }
         }
