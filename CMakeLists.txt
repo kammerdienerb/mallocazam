@@ -1,4 +1,6 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.6)
+
+message(STATUS "LLVM_DIR=${LLVM_DIR}")
 
 find_package(LLVM REQUIRED CONFIG)
 

@@ -50,10 +50,10 @@ struct mallocazam : public ModulePass {
         Type * pointer_type = Type::getInt8PtrTy(module_ptr->getContext());
 
         std::vector<Type*> param_types { pointer_type, pointer_type };
-        
+
         FunctionType * fn_type = FunctionType::get(Type::getVoidTy(module_ptr->getContext()), param_types, false);
 
-        Function * fn = Function::Create(fn_type, GlobalValue::LinkageTypes::LinkOnceODRLinkage, "mallocazam", module_ptr);
+        Function * fn = Function::Create(fn_type, GlobalValue::LinkageTypes::WeakODRLinkage, "mallocazam", module_ptr);
 
         llvm::BasicBlock * entry = llvm::BasicBlock::Create(module_ptr->getContext(), "mallocazam_entry", fn);
 
@@ -70,7 +70,7 @@ struct mallocazam : public ModulePass {
     Value * getOrCreateGlobalTypeString(Type * type, Module& theModule) {
         std::string str;
         raw_string_ostream rso(str);
-        
+
         rso << *type;
         rso.flush();
 
@@ -109,7 +109,9 @@ struct mallocazam : public ModulePass {
                 std::vector<BitCastInst*> casts;
                 for (auto& I : BB) {
                     if (BitCastInst * cast = dyn_cast<BitCastInst>(&I)) {
-                        if (!isa<AllocaInst>(*cast->getOperand(0))) {
+                        if (cast->getType()->isPointerTy()               /* resulting type is a pointer */
+                        && cast->getOperand(0)->getType()->isPointerTy() /* operand type is a pointer */
+                        &&  !isa<AllocaInst>(*cast->getOperand(0))) {
                             casts.push_back(cast);
                         }
                     }
@@ -123,7 +125,7 @@ struct mallocazam : public ModulePass {
 
                     arg0 = cast->getOperand(0);
                     if (arg0->getType() != ptr_type) {
-                        arg0 = builder->CreateBitCast(arg0, ptr_type); 
+                        arg0 = builder->CreateBitCast(arg0, ptr_type);
                     }
 
                     arg1 = getOrCreateGlobalTypeString(cast->getType()->getPointerElementType(), theModule);
@@ -136,7 +138,7 @@ struct mallocazam : public ModulePass {
                 }
             }
         }
-        
+
         return true;
     }
     ////////////////////////////////////////////////////////////////////////////////
